@@ -9,7 +9,12 @@ import org.slf4j.LoggerFactory;
 import com.momentum.hierarchy.datareader.FlexibleCSVReader;
 import com.momentum.hierarchy.employee.EmployeeRecord;
 import com.momentum.hierarchy.validation.EmployeeDataValidator.ValidationResult;
+import com.momentum.hierarchy.output.FormatterFactory;
+import com.momentum.hierarchy.output.HierarchyFormatter;
+import com.momentum.hierarchy.output.FileExporter;
+import com.momentum.hierarchy.employee.Employee;
 import com.opencsv.exceptions.CsvValidationException;
+import java.util.Map;
 
 /**
  * Enhanced application with command line support and improved user experience.
@@ -28,6 +33,9 @@ public class ImprovedApplication {
               -v, --verbose           Enable verbose logging
               -d, --debug             Enable debug logging
               --validate-only         Only validate data, don't build hierarchy
+              -f, --format FORMAT     Output format (html, json, xml) [default: console]
+              -o, --output FILE       Output file path
+              --export-all            Export to all formats
             
             Arguments:
               csv-file                Path to CSV file (default: EmployeeData.csv)
@@ -37,6 +45,9 @@ public class ImprovedApplication {
               java -jar OrgHierarchy.jar my-employees.csv
               java -jar OrgHierarchy.jar -v test-data/circular-reference.csv
               java -jar OrgHierarchy.jar --validate-only invalid-data.csv
+              java -jar OrgHierarchy.jar -f html -o hierarchy.html
+              java -jar OrgHierarchy.jar -f json -o hierarchy.json
+              java -jar OrgHierarchy.jar --export-all -o output/
             """;
     
     private final ApplicationConfig config;
@@ -78,6 +89,9 @@ public class ImprovedApplication {
         logger.info("Verbose mode: {}", config.isVerbose());
         logger.info("Debug mode: {}", config.isDebug());
         logger.info("Validate only: {}", config.isValidateOnly());
+        logger.info("Output format: {}", config.getOutputFormat());
+        logger.info("Output file: {}", config.getOutputFile());
+        logger.info("Export all: {}", config.isExportAll());
         
         try {
             // Read CSV data
@@ -109,8 +123,15 @@ public class ImprovedApplication {
                 return true;
             }
             
-            // Print hierarchy
-            printHierarchy(builder);
+            // Handle output formatting
+            if (config.isExportAll()) {
+                exportToAllFormats(builder);
+            } else if (!"console".equals(config.getOutputFormat())) {
+                exportToFormat(builder, config.getOutputFormat(), config.getOutputFile());
+            } else {
+                // Print hierarchy to console
+                printHierarchy(builder);
+            }
             
             return true;
             
@@ -156,6 +177,69 @@ public class ImprovedApplication {
         System.out.println("\n✅ Hierarchy built successfully!");
     }
     
+    private void exportToFormat(ImprovedHierarchyBuilder builder, String format, String outputFile) {
+        try {
+            HierarchyFormatter formatter = FormatterFactory.getFormatter(format);
+            if (formatter == null) {
+                System.err.println("❌ Unsupported format: " + format);
+                System.err.println("Supported formats: " + FormatterFactory.getAvailableFormats());
+                return;
+            }
+            
+            String content = formatter.format(builder.getHierarchyTree(), 
+                builder.getAllEmployees().values().stream()
+                    .map(Employee::convertToEmployeeRecord)
+                    .collect(java.util.stream.Collectors.toList()), 
+                builder.getCEO().orElse(null).convertToEmployeeRecord());
+            
+            if (outputFile != null) {
+                // Export to file
+                java.nio.file.Path filePath = FileExporter.exportToFile(
+                    builder.getHierarchyTree(), 
+                    builder.getAllEmployees().values().stream()
+                        .map(Employee::convertToEmployeeRecord)
+                        .collect(java.util.stream.Collectors.toList()), 
+                    builder.getCEO().orElse(null).convertToEmployeeRecord(), 
+                    format, 
+                    outputFile
+                );
+                System.out.println("✅ Exported to: " + filePath.toAbsolutePath());
+            } else {
+                // Print to console
+                System.out.println("\n📄 " + formatter.getFormatterName() + " Output:");
+                System.out.println("=" .repeat(50));
+                System.out.println(content);
+            }
+            
+        } catch (Exception e) {
+            logger.error("Error exporting to format {}: {}", format, e.getMessage(), e);
+            System.err.println("❌ Error exporting to " + format + ": " + e.getMessage());
+        }
+    }
+    
+    private void exportToAllFormats(ImprovedHierarchyBuilder builder) {
+        try {
+            String outputDir = config.getOutputFile();
+            Map<String, java.nio.file.Path> exportedFiles = FileExporter.exportToAllFormats(
+                builder.getHierarchyTree(), 
+                builder.getAllEmployees().values().stream()
+                    .map(Employee::convertToEmployeeRecord)
+                    .collect(java.util.stream.Collectors.toList()), 
+                builder.getCEO().orElse(null).convertToEmployeeRecord(), 
+                outputDir
+            );
+            
+            System.out.println("\n✅ Exported to all formats:");
+            for (Map.Entry<String, java.nio.file.Path> entry : exportedFiles.entrySet()) {
+                System.out.println("  📄 " + entry.getKey().toUpperCase() + ": " + entry.getValue().toAbsolutePath());
+            }
+            
+        } catch (Exception e) {
+            logger.error("Error exporting to all formats: {}", e.getMessage(), e);
+            System.err.println("❌ Error exporting to all formats: " + e.getMessage());
+        }
+    }
+    
     private static ApplicationConfig parseCommandLineArgs(String[] args) {
         ApplicationConfig config = new ApplicationConfig();
         
@@ -177,6 +261,26 @@ public class ImprovedApplication {
                     
                 case "--validate-only":
                     config.setValidateOnly(true);
+                    break;
+                    
+                case "-f", "--format":
+                    if (i + 1 < args.length) {
+                        config.setOutputFormat(args[++i]);
+                    } else {
+                        throw new IllegalArgumentException("Format option requires a value");
+                    }
+                    break;
+                    
+                case "-o", "--output":
+                    if (i + 1 < args.length) {
+                        config.setOutputFile(args[++i]);
+                    } else {
+                        throw new IllegalArgumentException("Output option requires a value");
+                    }
+                    break;
+                    
+                case "--export-all":
+                    config.setExportAll(true);
                     break;
                     
                 default:
@@ -202,6 +306,9 @@ public class ImprovedApplication {
         private boolean debug = false;
         private boolean validateOnly = false;
         private boolean helpRequested = false;
+        private String outputFormat = "console";
+        private String outputFile = null;
+        private boolean exportAll = false;
         
         public String getCsvFilePath() { return csvFilePath; }
         public void setCsvFilePath(String csvFilePath) { this.csvFilePath = csvFilePath; }
@@ -217,5 +324,14 @@ public class ImprovedApplication {
         
         public boolean isHelpRequested() { return helpRequested; }
         public void setHelpRequested(boolean helpRequested) { this.helpRequested = helpRequested; }
+        
+        public String getOutputFormat() { return outputFormat; }
+        public void setOutputFormat(String outputFormat) { this.outputFormat = outputFormat; }
+        
+        public String getOutputFile() { return outputFile; }
+        public void setOutputFile(String outputFile) { this.outputFile = outputFile; }
+        
+        public boolean isExportAll() { return exportAll; }
+        public void setExportAll(boolean exportAll) { this.exportAll = exportAll; }
     }
 } 

@@ -104,6 +104,25 @@ public class ImprovedHierarchyBuilder {
         return new HashMap<>(employeeMap);
     }
     
+    /**
+     * Gets the hierarchy tree structure for formatters.
+     * 
+     * @return Map of manager ID to list of employee records
+     */
+    public Map<String, List<EmployeeRecord>> getHierarchyTree() {
+        Map<String, List<EmployeeRecord>> hierarchyTree = new HashMap<>();
+        
+        for (Map.Entry<String, List<Employee>> entry : mgrEmployeeMap.entrySet()) {
+            List<EmployeeRecord> employeeRecords = new ArrayList<>();
+            for (Employee employee : entry.getValue()) {
+                employeeRecords.add(employee.convertToEmployeeRecord());
+            }
+            hierarchyTree.put(entry.getKey(), employeeRecords);
+        }
+        
+        return hierarchyTree;
+    }
+    
     private void buildEmployeeMap(List<EmployeeRecord> employeeRecords) {
         logger.debug("Building employee map");
         for (EmployeeRecord employeeRecord : employeeRecords) {
