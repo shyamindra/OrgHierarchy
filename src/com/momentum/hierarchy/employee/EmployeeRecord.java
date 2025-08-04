@@ -13,6 +13,25 @@ public class EmployeeRecord {
 	@CsvBindByPosition(position = 2)
 	private String mgrID;
 	
+	/**
+	 * Default constructor required by OpenCSV.
+	 */
+	public EmployeeRecord() {
+	}
+	
+	/**
+	 * Constructor for creating EmployeeRecord instances manually.
+	 * 
+	 * @param name Employee name
+	 * @param id Employee ID
+	 * @param mgrId Manager ID (can be null for CEO)
+	 */
+	public EmployeeRecord(String name, String id, String mgrId) {
+		this.name = name;
+		this.iD = id;
+		this.mgrID = mgrId;
+	}
+	
 	public String getName() {
 		return name;
 	}
