@@ -82,6 +82,9 @@ public class EmployeeDataValidator {
         // Check for multiple CEOs
         checkForMultipleCEOs(employeeRecords, warnings);
         
+        // Check for no CEO
+        checkForNoCEO(employeeRecords, errors);
+        
         // Check for orphaned employees
         checkForOrphanedEmployees(employeeRecords, warnings);
         
@@ -161,8 +164,16 @@ public class EmployeeDataValidator {
             warnings.add("Multiple CEOs found: " + ceos.stream()
                     .map(record -> record.getName() + " (ID: " + record.getID() + ")")
                     .collect(Collectors.joining(", ")));
-        } else if (ceos.isEmpty()) {
-            warnings.add("No CEO found (no employee without a manager)");
+        }
+    }
+    
+    private void checkForNoCEO(List<EmployeeRecord> employeeRecords, Set<String> errors) {
+        List<EmployeeRecord> ceos = employeeRecords.stream()
+                .filter(record -> record.getMgrID() == null || record.getMgrID().trim().isEmpty())
+                .collect(Collectors.toList());
+        
+        if (ceos.isEmpty()) {
+            errors.add("No CEO found (no employee without a manager)");
         }
     }
     

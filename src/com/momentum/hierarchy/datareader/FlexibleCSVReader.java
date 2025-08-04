@@ -64,7 +64,8 @@ public class FlexibleCSVReader {
                     .withSkipLines(1) // Skip header row
                     .withType(EmployeeRecord.class)
                     .withIgnoreLeadingWhiteSpace(true)
-                    .withFieldAsNull(CSVReaderNullFieldIndicator.EMPTY_SEPARATORS)
+                    .withIgnoreQuotations(true)
+                    .withFieldAsNull(CSVReaderNullFieldIndicator.NEITHER)
                     .build();
 
             Iterator<EmployeeRecord> recordIterator = csvToBean.iterator();

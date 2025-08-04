@@ -94,10 +94,10 @@ class ImprovedHierarchyBuilderTest {
         
         boolean success = hierarchyBuilder.buildAndValidateHierarchy(records);
         
-        assertTrue(success); // No CEO is a warning, not an error
-        assertTrue(hierarchyBuilder.getValidationResult().isValid());
-        assertEquals(1, hierarchyBuilder.getValidationResult().getWarnings().size());
-        assertTrue(hierarchyBuilder.getValidationResult().getWarnings().contains("No CEO found (no employee without a manager)"));
+        assertFalse(success); // No CEO should be an error since we can't build hierarchy
+        assertFalse(hierarchyBuilder.getValidationResult().isValid());
+        assertTrue(hierarchyBuilder.getValidationResult().getErrors().size() >= 1);
+        assertTrue(hierarchyBuilder.getValidationResult().getErrors().stream().anyMatch(error -> error.contains("No CEO found") || error.contains("Circular reference detected")));
     }
     
     @Test
