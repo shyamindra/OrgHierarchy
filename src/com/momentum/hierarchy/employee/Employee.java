@@ -43,4 +43,14 @@ public class Employee {
 		return "Employee [name=" + name + ", iD=" + iD + ", reportees=" + reportees + "]";
 	}
 	
+	/**
+	 * Converts this Employee to an EmployeeRecord.
+	 * Note: This conversion loses the manager ID information.
+	 * 
+	 * @return EmployeeRecord representation
+	 */
+	public EmployeeRecord convertToEmployeeRecord() {
+		return new EmployeeRecord(name, iD, null); // Manager ID is not available in Employee
+	}
+	
 }
